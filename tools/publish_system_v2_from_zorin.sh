@@ -133,7 +133,9 @@ echo "TREE_SIZE=$(du -sh "$REPO/system" | cut -f1)"
 echo "LFS quotas and GitHub account permissions may block large pushes."
 
 git add .gitattributes system metadata
-git diff --cached --check
+# Preinstalled Samsung/Android files legitimately contain trailing whitespace.
+# Do not normalize or reject SYSTEM payload: validate only generated text files.
+git diff --cached --check -- .gitattributes metadata
 echo "STAGED_FILES=$(git diff --cached --name-only | wc -l)"
 git commit -m "baseline: extracted Android16 Camera+Video6 SYSTEM V2 EROFS"
 git push --set-upstream origin "$BRANCH"
