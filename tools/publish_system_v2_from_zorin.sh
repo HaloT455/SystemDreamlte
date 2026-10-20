@@ -5,6 +5,7 @@ set -Eeuo pipefail
 IMAGE="${1:-/mnt/alice-ssd/ALICE_SYSTEM/OUTPUT/system_alice_camera_v2.img}"
 MODE="${2:-inspect}"
 BASE="/mnt/alice-ssd/ALICE_SYSTEM"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 WORK="${ALICE_IMPORT_WORK:-$BASE/GITHUB_SYSTEM_V2_IMPORT}"
 REPO="$WORK/SystemDreamlte"
 MNT="$WORK/mount-ro"
@@ -69,10 +70,7 @@ mounted=1
 [[ -f "$MNT/build.prop" || -f "$MNT/system/build.prop" ||
    -d "$MNT/etc" || -d "$MNT/system/etc" ]] ||
   die "Mounted file does not look like Android SYSTEM"
-for private in efs userdata data persist; do
-  [[ ! -d "$MNT/$private" ]] ||
-    die "Unexpected root /$private directory; review for private data"
-done
+sudo python3 "$SCRIPT_DIR/check_system_private_dirs.py" "$MNT" || die "Private-data check failed"
 
 git clone --quiet "$REMOTE" "$REPO"
 cd "$REPO"
