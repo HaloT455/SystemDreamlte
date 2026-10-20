@@ -24,3 +24,38 @@ Cần:
 - Xác nhận **có quyền chia sẻ** các thành phần Samsung/Google độc quyền nếu repo public. Có thể chuyển repo thành private trước khi tải lên.
 
 Ảnh `system.img` nguyên khối không được đưa vào Git; chỉ đẩy cây tệp đã giải nén. Git không lưu đầy đủ uid/gid, SELinux xattr và hardlinks: công cụ xuất manifest metadata tách riêng phục vụ dựng lại EROFS, nhưng **không bảo đảm tái tạo byte-identical**.
+
+## Zorin OS: chạy công cụ đã có trong repo
+
+**Kiểm tra file SYSTEM V2 trên SSD (không upload):**
+
+```bash
+git clone https://github.com/HaloT455/SystemDreamlte.git ~/SystemDreamlte-setup
+cd ~/SystemDreamlte-setup
+bash tools/publish_system_v2_from_zorin.sh /mnt/alice-ssd/ALICE_SYSTEM/OUTPUT/system_alice_camera_v2.img inspect
+```
+
+Nếu không thấy `system_alice_camera_v2.img`, công cụ hiện danh sách ảnh ứng viên; chọn **đúng bản SYSTEM V2 đã thử và Camera hoạt động**, không chọn SYSTEM V1.
+
+**Xuất nội dung và push lên nhánh riêng (chỉ khi đã xác nhận quyền chia sẻ OEM / Google vì repo hiện PUBLIC):**
+
+```bash
+sudo apt update
+sudo apt install -y git git-lfs rsync file
+cd ~/SystemDreamlte-setup
+ALICE_CONFIRM_PUBLIC_PUBLISH=YES bash tools/publish_system_v2_from_zorin.sh /mnt/alice-ssd/ALICE_SYSTEM/OUTPUT/system_alice_camera_v2.img publish
+```
+
+Bản SYSTEM V2 đầu vào chỉ được mount read-only; Git checkout nằm ở `/mnt/alice-ssd/ALICE_SYSTEM/GITHUB_SYSTEM_V2_IMPORT/SystemDreamlte`. Nếu đẩy GitHub thất bại do tài khoản, kết nối hay Git LFS quota, **không chạy lại toàn bộ script lên cùng checkout**; chỉnh lý rồi đẩy lại tại checkout:
+
+```bash
+cd /mnt/alice-ssd/ALICE_SYSTEM/GITHUB_SYSTEM_V2_IMPORT/SystemDreamlte
+git push -u origin baseline/system-v2-camera
+```
+
+### Giới hạn quan trọng
+- Repo công khai có thể vi phạm quyền phát hành lại phần mềm độc quyền. Nên chuyển `SystemDreamlte` sang **private** trước khi xuất toàn bộ SYSTEM; kể cả private vẫn cần tuân thủ giấy phép.
+- Source tree là **các tệp được giải nén từ image**, không phải mã nguồn Java/C/C++ của Samsung.
+- File `metadata/system-v2-fs.json` giữ thông tin uid/gid, SELinux và hardlink; cần tooling EROFS riêng để dựng lại chính xác.
+- Không sửa image gốc và không tải nguyên `system.img` lên Git.
+- Nếu GitHub LFS báo hết quota hoặc file vượt giới hạn, phải xử lý quota/nhóm dữ liệu phù hợp; đừng force-push hay bỏ kiểm tra integrity.
