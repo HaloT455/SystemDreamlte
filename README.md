@@ -59,3 +59,19 @@ git push -u origin baseline/system-v2-camera
 - File `metadata/system-v2-fs.json` giữ thông tin uid/gid, SELinux và hardlink; cần tooling EROFS riêng để dựng lại chính xác.
 - Không sửa image gốc và không tải nguyên `system.img` lên Git.
 - Nếu GitHub LFS báo hết quota hoặc file vượt giới hạn, phải xử lý quota/nhóm dữ liệu phù hợp; đừng force-push hay bỏ kiểm tra integrity.
+
+### Khôi phục sau lỗi `git diff --cached --check` (SYSTEM V2 5.380 mục)
+
+Nếu quá trình xuất đã hiện `TREE_SIZE=6,7G`, `EROFS manifest entries: 5380` nhưng dừng ở cảnh báo `trailing whitespace`, cây file **đã trích xuất và stage thành công**. Các khoảng trắng CRLF, trailing whitespace của OEM không được tự sửa hoặc chuẩn hoá.
+
+Để tiếp tục **không trích xuất lại**, tại `~/SystemDreamlte-setup` tải công cụ mới rồi chạy:
+
+```bash
+cd ~/SystemDreamlte-setup
+git pull --ff-only origin main
+ALICE_CONFIRM_PUBLIC_PUBLISH=YES bash tools/resume_system_v2_import.sh
+```
+
+Công cụ dùng checkout hiện có tại `/mnt/alice-ssd/ALICE_SYSTEM/GITHUB_SYSTEM_V2_IMPORT/SystemDreamlte` và kiểm tra nhánh, SHA256 gốc `2a28920a8c9788e9c90fce78723f77ef60fa34e79906ff9846b7985dbec8c593`, manifest, dữ liệu riêng tư và giới hạn kích thước đối tượng Git trước khi commit/push.
+
+Nếu push thất bại vì Git LFS quota hoặc xác thực, **không clone hay trích xuất lại**; commit tại Zorin vẫn còn và có thể chạy `git push -u origin baseline/system-v2-camera` sau khi xử lý nguyên nhân. Thư mục SYSTEM V2 gốc trên SSD không bị tác động.
