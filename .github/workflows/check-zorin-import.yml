@@ -4,6 +4,8 @@ on:
     branches: [main]
     paths:
       - "tools/publish_system_v2_from_zorin.sh"
+      - "tools/check_system_private_dirs.py"
+      - "tools/test_system_private_dirs.py"
       - ".github/workflows/check-zorin-import.yml"
   workflow_dispatch:
 permissions:
@@ -18,6 +20,8 @@ jobs:
           persist-credentials: false
       - name: Bash syntax check
         run: bash -n tools/publish_system_v2_from_zorin.sh
+      - name: Test empty private placeholders and block sensitive content
+        run: python3 tools/test_system_private_dirs.py
       - name: Check safe, inspect-only missing-image failure
         shell: bash
         run: |
