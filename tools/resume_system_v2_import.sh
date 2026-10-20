@@ -21,10 +21,36 @@ cd "$CHECKOUT"
 
 echo "CHECKOUT=$CHECKOUT"
 echo "BASELINE_IMAGE_SHA256=$EXPECTED_IMAGE_SHA256"
-echo "STAGED_FILES=$(git diff --cached --name-only | wc -l)"
+echo "STAGED_FILES_BEFORE=$(git diff --cached --name-only | wc -l)"
 git lfs version >/dev/null
-git diff --cached --quiet && die "Nothing staged; do not create an empty baseline"
-git diff --cached --check -- metadata .gitattributes
+IMPORT_STATE="staged"
+if git diff --cached --quiet; then
+  # Previous run may already have committed the 4,876 files, OR its index
+  # may have been cleared. These two states need different recovery paths.
+  if git cat-file -e HEAD:metadata/system-v2-image.sha256 2>/dev/null; then
+    committed_sha="$(git show HEAD:metadata/system-v2-image.sha256 | tr -d '[:space:]')"
+    [[ "$committed_sha" = "$EXPECTED_IMAGE_SHA256" ]] ||
+      die "HEAD contains a DIFFERENT SYSTEM image; refusing to push"
+    committed_files="$(git ls-tree -r --name-only HEAD -- system | wc -l)"
+    [[ "$committed_files" -ge 4500 ]] ||
+      die "HEAD contains only $committed_files SYSTEM files; incomplete import"
+    [[ -z "$(git status --porcelain --untracked-files=all -- system metadata .gitattributes)" ]] ||
+      die "Already committed SYSTEM has local changes; review before pushing"
+    IMPORT_STATE="already-committed"
+    echo "Detected complete existing SYSTEM V2 commit with $committed_files files; push only"
+  else
+    echo "Index is empty, but extracted files exist. Restaging without re-extraction..."
+    git add .gitattributes system metadata
+    git diff --cached --quiet &&
+      die "No staged SYSTEM files after git add; check local files before continuing"
+    echo "STAGED_FILES_AFTER_RESTAGE=$(git diff --cached --name-only | wc -l)"
+  fi
+fi
+if [[ "$IMPORT_STATE" = staged ]]; then
+  # Prebuilt OEM files legitimately contain trailing whitespace; check only
+  # the newly generated metadata instead of changing raw ROM bytes.
+  git diff --cached --check -- metadata .gitattributes
+fi
 
 python3 - <<'PY'
 import json, subprocess
@@ -65,10 +91,15 @@ if over:
 print("PASS: no non-LFS staged Git blobs exceed 95 MiB")
 PY
 
-if git ls-remote --exit-code --heads origin "refs/heads/$BRANCH" >/dev/null 2>&1; then
+remote_head="$(git ls-remote --heads origin "refs/heads/$BRANCH")" ||
+  die "Cannot check remote branch (network or GitHub authentication)"
+[[ -z "$remote_head" ]] ||
   die "Remote baseline already exists. Refusing overwrite."
+if [[ "$IMPORT_STATE" = staged ]]; then
+  git commit -m "baseline: extracted Android16 Camera+Video6 SYSTEM V2 EROFS"
+else
+  echo "Using existing local baseline commit $(git rev-parse --short HEAD)"
 fi
-git commit -m "baseline: extracted Android16 Camera+Video6 SYSTEM V2 EROFS"
-echo "Committed locally. Pushing staged LFS objects and baseline branch..."
+echo "Pushing LFS objects and baseline branch..."
 git push -u origin "$BRANCH"
 echo "PUBLISHED: https://github.com/HaloT455/SystemDreamlte/tree/$BRANCH"
