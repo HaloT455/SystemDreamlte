@@ -6,6 +6,7 @@ on:
       - "tools/publish_system_v2_from_zorin.sh"
       - "tools/check_system_private_dirs.py"
       - "tools/test_system_private_dirs.py"
+      - "tools/resume_system_v2_import.sh"
       - ".github/workflows/check-zorin-import.yml"
   workflow_dispatch:
 permissions:
@@ -19,9 +20,28 @@ jobs:
         with:
           persist-credentials: false
       - name: Bash syntax check
-        run: bash -n tools/publish_system_v2_from_zorin.sh
+        run: |
+          bash -n tools/publish_system_v2_from_zorin.sh
+          bash -n tools/resume_system_v2_import.sh
       - name: Test empty private placeholders and block sensitive content
         run: python3 tools/test_system_private_dirs.py
+      - name: Regression - preserve original OEM whitespace
+        shell: bash
+        run: |
+          set -euo pipefail
+          temp="$(mktemp -d)"
+          git -C "$temp" init -q
+          mkdir -p "$temp/system" "$temp/metadata"
+          printf 'OEM trailing whitespace   \\n' > "$temp/system/rom-file.txt"
+          printf 'manifest clean\\n' > "$temp/metadata/info.txt"
+          printf 'system/** -text\\n' > "$temp/.gitattributes"
+          git -C "$temp" add .
+          git -C "$temp" diff --cached --check -- metadata .gitattributes
+          if git -C "$temp" diff --cached --check -- system; then
+            echo "::error::Regression fixture was not recognized as having whitespace"
+            exit 1
+          fi
+          echo "PASS: verified generated metadata without altering OEM system bytes"
       - name: Check safe, inspect-only missing-image failure
         shell: bash
         run: |
