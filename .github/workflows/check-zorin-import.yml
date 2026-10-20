@@ -34,7 +34,7 @@ jobs:
           mkdir -p "$temp/system" "$temp/metadata"
           printf 'OEM trailing whitespace   \\n' > "$temp/system/rom-file.txt"
           printf 'manifest clean\\n' > "$temp/metadata/info.txt"
-          printf 'system/** -text\\n' > "$temp/.gitattributes"
+          printf 'ROM content remains unchanged\\n' > "$temp/.gitattributes"
           git -C "$temp" add .
           git -C "$temp" diff --cached --check -- metadata .gitattributes
           if git -C "$temp" diff --cached --check -- system; then
