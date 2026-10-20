@@ -32,9 +32,10 @@ jobs:
           temp="$(mktemp -d)"
           git -C "$temp" init -q
           mkdir -p "$temp/system" "$temp/metadata"
-          printf 'OEM trailing whitespace   \\n' > "$temp/system/rom-file.txt"
-          printf 'manifest clean\\n' > "$temp/metadata/info.txt"
-          printf 'ROM content remains unchanged\\n' > "$temp/.gitattributes"
+          printf "%s   " "OEM trailing whitespace" > "$temp/system/rom-file.txt"
+          echo >> "$temp/system/rom-file.txt"
+          echo "manifest clean" > "$temp/metadata/info.txt"
+          echo "# ROM content remains unchanged" > "$temp/.gitattributes"
           git -C "$temp" add .
           git -C "$temp" diff --cached --check -- metadata .gitattributes
           if git -C "$temp" diff --cached --check -- system; then
