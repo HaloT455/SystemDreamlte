@@ -1,0 +1,31 @@
+name: Validate Zorin SYSTEM V2 import helper
+on:
+  push:
+    branches: [main]
+    paths:
+      - "tools/publish_system_v2_from_zorin.sh"
+      - ".github/workflows/check-zorin-import.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  syntax-and-static-check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Bash syntax check
+        run: bash -n tools/publish_system_v2_from_zorin.sh
+      - name: Check safe, inspect-only missing-image failure
+        shell: bash
+        run: |
+          set -euo pipefail
+          if bash tools/publish_system_v2_from_zorin.sh /tmp/definitely-not-system-v2-ALICE.img inspect; then
+            echo "::error::Script unexpectedly accepted missing V2 image"
+            exit 1
+          fi
+          echo "PASS: Bash parser and missing-image protection"
+      - name: No extraction or upload during CI
+        run: echo "No SYSTEM data present in CI. User executes this script on their Zorin laptop."
